@@ -1,0 +1,73 @@
+name: vibester-sonar
+
+services:
+  # SonarQube embute um Elasticsearch que se recusa a subir se o kernel estiver
+  # com vm.max_map_count abaixo de 524288. No Docker Desktop / WSL2 o default e
+  # 262144, entao o container morre poucos segundos depois de subir.
+  # Este init container ajusta o sysctl do kernel compartilhado e encerra.
+  # Alternativa permanente (Windows): ver secao "vm.max_map_count" no README.
+  sysctl:
+    image: alpine:3.20
+    privileged: true
+    command: sh -c "sysctl -w vm.max_map_count=524288 && sysctl -w fs.file-max=131072"
+    restart: "no"
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:-sonar}
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sem `ports:` de proposito. A 5432 do host ja esta ocupada por outra
+    # instancia local e este Postgres so precisa falar com o SonarQube pela
+    # rede interna do Compose.
+
+  sonarqube:
+    image: sonarqube:community
+    depends_on:
+      db:
+        condition: service_healthy
+      sysctl:
+        condition: service_completed_successfully
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:-sonar}
+    ports:
+      # Porta do host configuravel: a 9000 pode estar ocupada por outra
+      # instancia de SonarQube na maquina. A porta interna segue 9000 e o
+      # scanner fala com o container pela rede, entao isso nao o afeta.
+      - "${SONAR_PORT:-9001}:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 60s
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  sonar_db:
+
+networks:
+  # Nome fixo para o container do scanner conseguir se anexar
+  # (`docker run --network vibester-sonar`) e enxergar o host `sonarqube`.
+  default:
+    name: vibester-sonar

@@ -23,3 +23,7 @@ apps/.DS_Store
 secrets/
 apps/services/monitoring/secrets/
 coverage/
+
+# SonarQube (analise estatica local)
+.scannerwork/
+apps/services/sonar/.env

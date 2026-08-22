@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/services/**", "src/controllers/**", "src/routes.ts"],
-      reporter: ["text", "json-summary", "html"],
+      reporter: ["text", "json-summary", "html", "lcov"],
       thresholds: { lines: 70, functions: 70, branches: 60 },
     },
     reporters: ["verbose"],

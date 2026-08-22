@@ -237,6 +237,34 @@ Ao gerar código para este projeto:
 
 ---
 
+# Análise Estática (SonarQube)
+
+O backend tem uma instância local de **SonarQube Community Build** para auditar
+dívida técnica, security hotspots, complexidade cognitiva e duplicação. Roda
+inteiramente na máquina do dev, via Docker.
+
+```bash
+docker compose -f apps/services/sonar/docker-compose.yml up -d
+node apps/services/sonar/scan.mjs all
+```
+
+Dashboard em `http://localhost:9001`. Documentação completa (token, sysctl do
+WSL2, troubleshooting) em [`apps/services/sonar/README.md`](apps/services/sonar/README.md).
+
+Pontos de atenção:
+
+- É **auditoria sob demanda, não gate de merge**. O Community Build não faz
+  análise de branch nem decoração de PR (recurso de Developer Edition), e
+  nenhum workflow do GitHub Actions está integrado a ele.
+- Cada serviço tem seu `sonar-project.properties`. O `sonar.coverage.exclusions`
+  espelha o `coverage.include` do `vitest.config.ts` do serviço — **ao mexer em
+  um, ajuste o outro**, senão a métrica de cobertura fica distorcida.
+- O cliente gerado do Prisma (`src/generated/**`) é excluído da análise. Em
+  `event-service`, `notification-service` e `scrapping-service` ele é maior que
+  o código real e dominaria as métricas.
+
+---
+
 # Fonte de Verdade
 
 Este documento fornece contexto para desenvolvimento.

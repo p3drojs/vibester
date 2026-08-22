@@ -16,7 +16,7 @@ export default defineConfig({
         "src/kafka/handlers/**",
         "src/clients/**",
       ],
-      reporter: ["text", "json-summary", "html"],
+      reporter: ["text", "json-summary", "html", "lcov"],
       thresholds: { lines: 70, functions: 70, branches: 60 },
     },
     reporters: ["verbose"],
